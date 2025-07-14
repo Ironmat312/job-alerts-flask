@@ -1,33 +1,45 @@
 import os
+from urllib.parse import quote_plus
 import feedparser
 import smtplib
 from email.mime.text import MIMEText
 
-# Λέξεις-κλειδιά και τοποθεσία
-keywords = ['internal auditor', 'audit assistant', 'financial controller']
-location = 'Αθήνα'
+def main():
+    # Ορισμός keywords και τοποθεσίας
+    keywords = ['internal auditor', 'audit assistant', 'financial controller']
+    location = 'Αθήνα'
 
-# Indeed RSS Feed URL (σωστός σύνδεσμος RSS)
-rss_url = f'https://gr.indeed.com/rss?q={"%20OR%20".join(keywords)}&l={location}'
+    # Κωδικοποίηση παραμέτρων για το URL
+    query = ' OR '.join(keywords)
+    encoded_query = quote_plus(query)
+    encoded_loc = quote_plus(location)
 
-# Τράβηγμα δεδομένων
-feed = feedparser.parse(rss_url)
+    # Σύνδεσμος RSS Indeed
+    rss_url = f'https://gr.indeed.com/rss?q={encoded_query}&l={encoded_loc}'
 
-jobs = []
-for entry in feed.entries:
-    jobs.append(f"{entry.title}\n{entry.link}")
+    # Ανάγνωση του feed
+    feed = feedparser.parse(rss_url)
 
-if jobs:
-    body = "\n\n".join(jobs)
-else:
-    body = "Δεν βρέθηκαν νέες αγγελίες σήμερα."
+    # Συλλογή αγγελιών
+    jobs = []
+    for entry in feed.entries:
+        jobs.append(f"{entry.title}\n{entry.link}")
 
-# Αποστολή email
-msg = MIMEText(body)
-msg['Subject'] = 'Νέες θέσεις εργασίας'
-msg['From'] = os.environ['EMAIL_USER']
-msg['To'] = os.environ['EMAIL_USER']
+    # Δημιουργία σώματος email
+    if jobs:
+        body = "\n\n".join(jobs)
+    else:
+        body = "Δεν βρέθηκαν νέες αγγελίες σήμερα."
 
-with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-    server.login(os.environ['EMAIL_USER'], os.environ['EMAIL_PASS'])
-    server.send_message(msg)
+    # Σύνταξη και αποστολή email
+    msg = MIMEText(body, _charset='utf-8')
+    msg['Subject'] = 'Νέες Θέσεις Εργασίας'
+    msg['From'] = os.environ['EMAIL_USER']
+    msg['To'] = os.environ['EMAIL_USER']
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(os.environ['EMAIL_USER'], os.environ['EMAIL_PASS'])
+        server.send_message(msg)
+
+if __name__ == "__main__":
+    main()
