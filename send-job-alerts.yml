@@ -1,17 +1,17 @@
 name: Send Job Alerts
 
-# Πότε να τρέχει: χειροκίνητα ή αυτόματα κάθε μέρα στις 10:00 UTC
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: {}      # για χειροκίνητο τρέξιμο
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '0 10 * * *'     # κάθε μέρα στις 10:00 UTC
 
 jobs:
   send-alerts:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -21,8 +21,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check ADZUNA_APP_ID
+        run: echo "ADZUNA_APP_ID is: $ADZUNA_APP_ID"
+        env:
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+
       - name: Run alert script
         env:
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          ADZUNA_APP_ID:  ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          EMAIL_USER:     ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS:     ${{ secrets.EMAIL_PASS }}
         run: python app.py
