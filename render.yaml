@@ -9,5 +9,5 @@ services:
 
 cronJobs:
   - name: run-job-alerts
-    schedule: "0 10 * * *"  # κάθε μέρα στις 10:00 π.μ.
+    schedule: "@daily"  # Εκτελείται κάθε μέρα
     command: "python app.py"
