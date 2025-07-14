@@ -1,11 +1,23 @@
+name: Send Job Alerts
+
+on:
+  workflow_dispatch: {}      # επιτρέπει το κουμπί “Run workflow”
+  schedule:
+    - cron: '0 10 * * *'     # κάθε μέρα στις 10:00 UTC
+
 jobs:
   send-alerts:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
         uses: actions/setup-python@v4
-        with: python-version: '3.10'
+        with:
+          python-version: '3.10'
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
