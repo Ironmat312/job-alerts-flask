@@ -5,17 +5,17 @@ import smtplib
 from email.mime.text import MIMEText
 
 def main():
-    # Ορισμός keywords και τοποθεσίας
+    # Λέξεις-κλειδιά και τοποθεσία
     keywords = ['internal auditor', 'audit assistant', 'financial controller']
-    location = 'Αθήνα'
+    location = 'Athens'  # αγγλικά, για να ταιριάζει με το global RSS
 
-    # Κωδικοποίηση παραμέτρων για το URL
+    # Κωδικοποίηση παραμέτρων
     query = ' OR '.join(keywords)
     encoded_query = quote_plus(query)
-    encoded_loc = quote_plus(location)
+    encoded_loc   = quote_plus(location)
 
-    # Σύνδεσμος RSS Indeed
-    rss_url = f'https://gr.indeed.com/rss?q={encoded_query}&l={encoded_loc}'
+    # new: global indeed.com RSS endpoint
+    rss_url = f'https://rss.indeed.com/rss?q={encoded_query}&l={encoded_loc}'
 
     # Ανάγνωση του feed
     feed = feedparser.parse(rss_url)
@@ -34,8 +34,8 @@ def main():
     # Σύνταξη και αποστολή email
     msg = MIMEText(body, _charset='utf-8')
     msg['Subject'] = 'Νέες Θέσεις Εργασίας'
-    msg['From'] = os.environ['EMAIL_USER']
-    msg['To'] = os.environ['EMAIL_USER']
+    msg['From']    = os.environ['EMAIL_USER']
+    msg['To']      = os.environ['EMAIL_USER']
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
         server.login(os.environ['EMAIL_USER'], os.environ['EMAIL_PASS'])
