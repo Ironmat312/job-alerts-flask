@@ -1,7 +1,7 @@
 name: Send Job Alerts
 
 on:
-  workflow_dispatch: {}      # επιτρέπει το κουμπί “Run workflow”
+  workflow_dispatch: {}      # για χειροκίνητο τρέξιμο
   schedule:
     - cron: '0 10 * * *'     # κάθε μέρα στις 10:00 UTC
 
