@@ -1,59 +1,56 @@
 import os
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
+import feedparser
 import smtplib
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 
-def main():
-    # 1) keywords + τοποθεσία
-    keywords = ['internal auditor', 'audit assistant', 'financial controller']
-    location = 'Athens'
+# ——————  ΡΥΘΜΙΣΕΙΣ  ——————
+ADZUNA_APP_ID  = os.environ['ADZUNA_APP_ID']
+ADZUNA_APP_KEY = os.environ['ADZUNA_APP_KEY']
+EMAIL_USER     = os.environ['EMAIL_USER']
+EMAIL_PASS     = os.environ['EMAIL_PASS']
 
-    # 2) φτιάχνουμε και κωδικοποιούμε το query
-    full_query = ' '.join(keywords + [location])
-    encoded_query = quote_plus(full_query)
+COUNTRY        = 'gb'       # ένας από: at, au, be, br, ca, ch, de, es, fr, gb, in, it, mx, nl, nz, pl, sg, us, za
+WHAT           = 'internal auditor'
+WHERE          = 'Athens'
+PER_PAGE       = 5
 
-    # 3) URL για Indeed (24ωρης δημοσίευσης)
-    url = f'https://www.indeed.com/jobs?q={encoded_query}&fromage=1'
+# φτιάχνουμε το URL
+rss_url = (
+    f"https://api.adzuna.com/v1/api/jobs/{COUNTRY}/search/1"
+    f"?app_id={ADZUNA_APP_ID}"
+    f"&app_key={ADZUNA_APP_KEY}"
+    f"&what={requests.utils.quote(WHAT)}"
+    f"&where={requests.utils.quote(WHERE)}"
+    f"&results_per_page={PER_PAGE}"
+)
 
-    # 4) κάνουμε request
-    res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(res.text, 'lxml')
+# 1) Φορτώνουμε τα αποτελέσματα
+resp = requests.get(rss_url)
+resp.raise_for_status()
+data = resp.json()
+jobs = data.get('results', [])
 
-    # 5) δοκιμάζουμε διαφορετικό selector: div.job_seen_beacon
-    cards = soup.select('div.job_seen_beacon')[:10]
-    print(f"DEBUG: Βρήκα {len(cards)} αγγελίες")  # θα φανεί στα logs
+# 2) Αν δεν βρήκαμε νέες αγγελίες, σταματάμε
+if not jobs:
+    print("DEBUG: Βρήκα 0 αγγελίες")
+    exit(0)
 
-    jobs = []
-    for card in cards:
-        # τίτλος
-        title_tag = card.select_one('h2.jobTitle > span')
-        title = title_tag.get_text(strip=True) if title_tag else '—'
+# 3) Φτιάχνουμε το σώμα του email
+body = "\n\n".join(
+    f"{j['title']} at {j['company']['display_name']} ({j['location']['area'][1]})\n{j['redirect_url']}"
+    for j in jobs
+)
 
-        # εταιρεία
-        comp_tag = card.select_one('span.companyName')
-        company = comp_tag.get_text(strip=True) if comp_tag else ''
+# 4) Στέλνουμε email
+msg = EmailMessage()
+msg['Subject'] = "🔔 Νέες θέσεις Εργασίας – Αθήνα"
+msg['From']    = EMAIL_USER
+msg['To']      = EMAIL_USER
+msg.set_content(body)
 
-        # link
-        link_tag = card.find('a', href=True)
-        href = link_tag['href'] if link_tag else ''
-        link = ('https://www.indeed.com' + href) if href.startswith('/') else href
+with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+    smtp.login(EMAIL_USER, EMAIL_PASS)
+    smtp.send_message(msg)
 
-        jobs.append(f"{title} @ {company}\n{link}")
-
-    # 6) σώμα email
-    body = "\n\n".join(jobs) if jobs else "Δεν βρέθηκαν νέες αγγελίες σήμερα."
-
-    # 7) στέλνουμε email
-    msg = MIMEText(body, _charset='utf-8')
-    msg['Subject'] = 'Νέες Θέσεις Εργασίας'
-    msg['From']    = os.environ['EMAIL_USER']
-    msg['To']      = os.environ['EMAIL_USER']
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(os.environ['EMAIL_USER'], os.environ['EMAIL_PASS'])
-        server.send_message(msg)
-
-if __name__ == '__main__':
-    main()
+print(f"DEBUG: Στάλθηκαν {len(jobs)} αγγελίες στο {EMAIL_USER}")
