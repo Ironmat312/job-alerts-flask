@@ -5,31 +5,28 @@ import smtplib
 from email.mime.text import MIMEText
 
 def main():
-    # Λέξεις-κλειδιά και τοποθεσία
-    keywords = ['internal auditor', 'audit assistant', 'financial controller']
-    location = 'Athens'  # αγγλικά, για να ταιριάζει με το global RSS
+    # Λέξεις-κλειδιά (με location ενσωματωμένη)
+    keywords = [
+        'internal auditor Athens',
+        'audit assistant Athens',
+        'financial controller Athens'
+    ]
 
-    # Κωδικοποίηση παραμέτρων
-    query = ' OR '.join(keywords)
-    encoded_query = quote_plus(query)
-    encoded_loc   = quote_plus(location)
+    # Δημιουργία query
+    query = ' OR '.join(keywords)  
+    encoded_query = quote_plus(query)  # κωδικοποίηση URL
 
-    # new: global indeed.com RSS endpoint
-    rss_url = f'https://rss.indeed.com/rss?q={encoded_query}&l={encoded_loc}'
+    # Τελικό RSS URL (χωρίς &l=)
+    rss_url = f'https://rss.indeed.com/rss?q={encoded_query}'
 
-    # Ανάγνωση του feed
+    # Φόρτωμα του feed
     feed = feedparser.parse(rss_url)
 
     # Συλλογή αγγελιών
-    jobs = []
-    for entry in feed.entries:
-        jobs.append(f"{entry.title}\n{entry.link}")
+    jobs = [f"{entry.title}\n{entry.link}" for entry in feed.entries]
 
-    # Δημιουργία σώματος email
-    if jobs:
-        body = "\n\n".join(jobs)
-    else:
-        body = "Δεν βρέθηκαν νέες αγγελίες σήμερα."
+    # Σώμα email
+    body = "\n\n".join(jobs) if jobs else "Δεν βρέθηκαν νέες αγγελίες σήμερα."
 
     # Σύνταξη και αποστολή email
     msg = MIMEText(body, _charset='utf-8')
@@ -43,3 +40,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
