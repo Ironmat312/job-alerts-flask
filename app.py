@@ -1,56 +1,55 @@
 import os
 import requests
-import feedparser
 import smtplib
-from email.message import EmailMessage
+from email.mime.text import MIMEText
 
-# ——————  ΡΥΘΜΙΣΕΙΣ  ——————
-ADZUNA_APP_ID  = os.environ['ADZUNA_APP_ID']
-ADZUNA_APP_KEY = os.environ['ADZUNA_APP_KEY']
-EMAIL_USER     = os.environ['EMAIL_USER']
-EMAIL_PASS     = os.environ['EMAIL_PASS']
+# 1) grab your Adzuna credentials & email creds from env
+APP_ID     = os.environ['ADZUNA_APP_ID']
+APP_KEY    = os.environ['ADZUNA_APP_KEY']
+EMAIL_USER = os.environ['EMAIL_USER']
+EMAIL_PASS = os.environ['EMAIL_PASS']
+TO_ADDRESS = EMAIL_USER  # or any list you like
 
-COUNTRY        = 'gb'       # ένας από: at, au, be, br, ca, ch, de, es, fr, gb, in, it, mx, nl, nz, pl, sg, us, za
-WHAT           = 'internal auditor'
-WHERE          = 'Athens'
-PER_PAGE       = 5
+# 2) build your search
+WHAT     = "internal auditor OR audit assistant OR financial controller"
+WHERE    = "London"
+COUNTRY  = "gb"  # must be one of Adzuna’s supported ISO codes
+PAGE     = 1
+PER_PAGE = 20
 
-# φτιάχνουμε το URL
-rss_url = (
-    f"https://api.adzuna.com/v1/api/jobs/{COUNTRY}/search/1"
-    f"?app_id={ADZUNA_APP_ID}"
-    f"&app_key={ADZUNA_APP_KEY}"
+url = (
+    f"https://api.adzuna.com/v1/api/jobs/{COUNTRY}/search/{PAGE}"
+    f"?app_id={APP_ID}&app_key={APP_KEY}"
     f"&what={requests.utils.quote(WHAT)}"
     f"&where={requests.utils.quote(WHERE)}"
     f"&results_per_page={PER_PAGE}"
 )
 
-# 1) Φορτώνουμε τα αποτελέσματα
-resp = requests.get(rss_url)
+# 3) fetch & parse
+resp = requests.get(url)
 resp.raise_for_status()
-data = resp.json()
-jobs = data.get('results', [])
+jobs = resp.json().get('results', [])
 
-# 2) Αν δεν βρήκαμε νέες αγγελίες, σταματάμε
+# 4) format email body
 if not jobs:
-    print("DEBUG: Βρήκα 0 αγγελίες")
-    exit(0)
+    body = "No new job listings found today."
+else:
+    lines = []
+    for j in jobs:
+        title = j.get('title')
+        loc   = j.get('location', {}).get('display_name')
+        date  = j.get('created')
+        link  = j.get('redirect_url')
+        lines.append(f"• {title} @ {loc} ({date})\n  {link}")
+    body = "\n\n".join(lines)
 
-# 3) Φτιάχνουμε το σώμα του email
-body = "\n\n".join(
-    f"{j['title']} at {j['company']['display_name']} ({j['location']['area'][1]})\n{j['redirect_url']}"
-    for j in jobs
-)
-
-# 4) Στέλνουμε email
-msg = EmailMessage()
-msg['Subject'] = "🔔 Νέες θέσεις Εργασίας – Αθήνα"
+msg = MIMEText(body, _charset='utf-8')
+msg['Subject'] = "📬 Daily Job Alerts"
 msg['From']    = EMAIL_USER
-msg['To']      = EMAIL_USER
-msg.set_content(body)
+msg['To']      = TO_ADDRESS
 
-with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-    smtp.login(EMAIL_USER, EMAIL_PASS)
-    smtp.send_message(msg)
-
-print(f"DEBUG: Στάλθηκαν {len(jobs)} αγγελίες στο {EMAIL_USER}")
+# 5) send it
+with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+    server.login(EMAIL_USER, EMAIL_PASS)
+    server.send_message(msg)
+print("Done sending email.")
